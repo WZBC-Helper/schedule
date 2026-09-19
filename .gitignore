@@ -1,0 +1,10 @@
+.nuxt
+.output
+node_modules
+.data
+dist
+coverage
+*.log
+.env
+.env.*
+!.env.example

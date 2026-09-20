@@ -7,16 +7,25 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.5",
     "@lucide/vue": "^1.47.0",
-    "nuxt": "^4.5.2"
+    "better-auth": "1.7.5",
+    "drizzle-orm": "0.45.2",
+    "mysql2": "3.24.4",
+    "nuxt": "^4.5.2",
+    "zod": "4.6.5"
   },
   "devDependencies": {
+    "drizzle-kit": "0.31.10",
     "typescript": "^5.9.3",
     "vitest": "^5.0.1",
     "vue-tsc": "^3.3.11"

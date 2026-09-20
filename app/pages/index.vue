@@ -9,18 +9,23 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
-  CloudOff,
+  Cloud,
   Download,
   GraduationCap,
   Import,
   LayoutGrid,
+  LoaderCircle,
+  LogOut,
   MapPin,
   Plus,
   RotateCcw,
   Settings,
   Sparkles,
   Upload,
+  UserRound,
 } from '@lucide/vue'
+import { authClient } from '~~/lib/auth-client'
+import type { CurrentSessionPayload } from '#shared/types/auth'
 import type { Course, CourseSelection, CourseSession, Weekday } from '../types/schedule'
 import {
   formatFullChineseDate,
@@ -30,6 +35,7 @@ import {
 import { describeWeeks, isSessionActive } from '../utils/schedule'
 
 const schedule = useSchedule()
+const { data: authSession } = await useFetch<CurrentSessionPayload>('/api/me')
 const editorOpen = ref(false)
 const importOpen = ref(false)
 const selected = ref<CourseSelection | null>(null)
@@ -71,9 +77,15 @@ function showNotice(message: string) {
   noticeTimer = setTimeout(() => { notice.value = '' }, 2800)
 }
 
-onMounted(() => {
-  const error = schedule.hydrate()
-  if (error) showNotice(`本地数据未载入：${error}`)
+onMounted(async () => {
+  const userId = authSession.value?.user.id
+  if (!userId) return navigateTo('/login')
+  try {
+    await schedule.load(userId)
+  }
+  catch (error) {
+    showNotice(error instanceof Error ? error.message : '课表加载失败')
+  }
 })
 
 onBeforeUnmount(() => {
@@ -90,24 +102,34 @@ function openCourse(selection: CourseSelection) {
   editorOpen.value = true
 }
 
-function saveCourse(course: Course) {
-  if (selected.value) {
-    schedule.updateCourse(course)
-    showNotice('课程修改已保存')
+async function saveCourse(course: Course) {
+  try {
+    if (selected.value) {
+      await schedule.updateCourse(course)
+      showNotice('课程修改已保存到账号')
+    }
+    else {
+      await schedule.addCourse(course)
+      showNotice('课程已添加到账号')
+    }
+    editorOpen.value = false
+    selected.value = null
   }
-  else {
-    schedule.addCourse(course)
-    showNotice('课程已添加')
+  catch (error) {
+    showNotice(error instanceof Error ? error.message : '课程保存失败')
   }
-  editorOpen.value = false
-  selected.value = null
 }
 
-function deleteCourseSession(courseId: string, sessionId: string) {
-  schedule.deleteSession(courseId, sessionId)
-  editorOpen.value = false
-  selected.value = null
-  showNotice('课程时段已删除')
+async function deleteCourseSession(courseId: string, sessionId: string) {
+  try {
+    await schedule.deleteSession(courseId, sessionId)
+    editorOpen.value = false
+    selected.value = null
+    showNotice('课程时段已删除')
+  }
+  catch (error) {
+    showNotice(error instanceof Error ? error.message : '删除失败')
+  }
 }
 
 function previousWeek() {
@@ -129,11 +151,11 @@ function periodRange(session: CourseSession) {
   return `${start} – ${end}`
 }
 
-function importBackup(payload: { text: string, name: string }) {
+async function importBackup(payload: { text: string, name: string }) {
   try {
-    schedule.importBackupText(payload.text)
+    await schedule.importBackupText(payload.text)
     importOpen.value = false
-    showNotice(`已从 ${payload.name} 恢复课表`)
+    showNotice(`已从 ${payload.name} 恢复到当前账号`)
   }
   catch (error) {
     showNotice(error instanceof Error ? error.message : '导入失败')
@@ -152,10 +174,32 @@ function exportBackup() {
   showNotice('课表备份已导出')
 }
 
-function resetDemo() {
-  if (!window.confirm('确定恢复示例课表吗？当前浏览器中的课程将被替换。')) return
-  schedule.resetToDemo()
-  showNotice('已恢复示例课表')
+async function resetDemo() {
+  if (!window.confirm('确定恢复示例课表吗？当前账号中的课程将被替换。')) return
+  try {
+    await schedule.resetToDemo()
+    showNotice('已恢复示例课表')
+  }
+  catch (error) {
+    showNotice(error instanceof Error ? error.message : '恢复失败')
+  }
+}
+
+async function importLocalSchedule() {
+  try {
+    await schedule.importLocalSchedule()
+    showNotice('本地课表已迁移到当前账号')
+  }
+  catch (error) {
+    showNotice(error instanceof Error ? error.message : '本地课表迁移失败')
+  }
+}
+
+async function logout() {
+  if (schedule.mutationPending.value) return
+  await authClient.signOut()
+  schedule.clearState()
+  await navigateTo('/login')
 }
 
 function upcomingFeature(name: string) {
@@ -205,17 +249,29 @@ function upcomingFeature(name: string) {
 
       <div class="sidebar-spacer" />
 
-      <div class="local-card">
-        <span><CloudOff :size="18" /></span>
+      <div class="local-card account-card">
+        <span><UserRound :size="18" /></span>
         <div>
-          <strong>本地模式</strong>
-          <p>数据仅保存在此浏览器</p>
+          <strong>{{ authSession?.user.name }}</strong>
+          <p>{{ authSession?.user.email }}</p>
+        </div>
+      </div>
+
+      <div class="local-card sync-card">
+        <span><Cloud :size="18" /></span>
+        <div>
+          <strong>账号云端保存</strong>
+          <p>数据已按用户安全隔离</p>
         </div>
       </div>
 
       <button class="nav-item sidebar-settings" type="button" @click="upcomingFeature('设置页')">
         <Settings :size="19" />
         <span>设置</span>
+      </button>
+      <button class="nav-item sidebar-logout" type="button" :disabled="schedule.mutationPending.value" @click="logout">
+        <LogOut :size="19" />
+        <span>退出登录</span>
       </button>
     </aside>
 
@@ -239,14 +295,28 @@ function upcomingFeature(name: string) {
               <ChevronRight :size="18" />
             </button>
           </div>
-          <button type="button" class="button button--ghost topbar-button" @click="importOpen = true">
+          <button type="button" class="button button--ghost topbar-button" :disabled="schedule.loading.value || schedule.mutationPending.value" @click="importOpen = true">
             <Upload :size="17" />导入课表
           </button>
-          <button type="button" class="button button--primary topbar-button" @click="openNewCourse">
+          <button type="button" class="button button--primary topbar-button" :disabled="schedule.loading.value || schedule.mutationPending.value" @click="openNewCourse">
             <Plus :size="18" />添加课程
           </button>
         </div>
       </header>
+
+      <div v-if="schedule.loading.value" class="page-loading" role="status">
+        <span><LoaderCircle :size="25" /></span>
+        <strong>正在加载你的课表</strong>
+        <p>正在安全读取账号中的课程数据…</p>
+      </div>
+
+      <div v-else-if="schedule.errorMessage.value && !schedule.hydrated.value" class="page-error" role="alert">
+        <strong>课表加载失败</strong>
+        <p>{{ schedule.errorMessage.value }}</p>
+        <button class="button button--primary" type="button" @click="authSession?.user.id && schedule.load(authSession.user.id, true)">重新加载</button>
+      </div>
+
+      <template v-else>
 
       <section class="summary-row" aria-label="课表概览">
         <div class="summary-copy">
@@ -257,8 +327,8 @@ function upcomingFeature(name: string) {
           </div>
         </div>
         <div class="summary-actions">
-          <button type="button" @click="exportBackup"><Download :size="16" />导出备份</button>
-          <button type="button" @click="resetDemo"><RotateCcw :size="16" />恢复示例</button>
+          <button type="button" :disabled="schedule.mutationPending.value" @click="exportBackup"><Download :size="16" />导出备份</button>
+          <button type="button" :disabled="schedule.mutationPending.value" @click="resetDemo"><RotateCcw :size="16" />恢复示例</button>
         </div>
       </section>
 
@@ -352,6 +422,7 @@ function upcomingFeature(name: string) {
           </button>
         </aside>
       </div>
+      </template>
     </main>
 
     <CourseEditorDialog
@@ -361,6 +432,7 @@ function upcomingFeature(name: string) {
       :session="selectedSession"
       :default-day="schedule.selectedDay.value"
       :current-week="schedule.viewedWeek.value"
+      :saving="schedule.mutationPending.value"
       @close="editorOpen = false; selected = null"
       @save="saveCourse"
       @delete="deleteCourseSession"
@@ -368,9 +440,18 @@ function upcomingFeature(name: string) {
 
     <ImportDialog
       :open="importOpen"
+      :pending="schedule.mutationPending.value"
       @close="importOpen = false"
       @import-backup="importBackup"
       @export-backup="exportBackup"
+    />
+
+    <LocalMigrationDialog
+      :open="Boolean(schedule.localMigration.value)"
+      :backup="schedule.localMigration.value"
+      :pending="schedule.mutationPending.value"
+      @import="importLocalSchedule"
+      @dismiss="schedule.dismissLocalMigration"
     />
 
     <Transition name="toast">

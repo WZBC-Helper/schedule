@@ -11,6 +11,7 @@ const props = defineProps<{
   session?: CourseSession
   defaultDay: Weekday
   currentWeek: number
+  saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -92,6 +93,7 @@ watch(() => form.startWeek, (value) => {
 })
 
 function submit() {
+  if (props.saving) return
   errorMessage.value = ''
   try {
     const name = form.name.trim()
@@ -140,7 +142,7 @@ function submit() {
 }
 
 function remove() {
-  if (!props.course || !props.session) return
+  if (props.saving || !props.course || !props.session) return
   if (window.confirm(`确定删除“${props.course.name}”的这个上课时段吗？`)) {
     emit('delete', props.course.id, props.session.id)
   }
@@ -153,7 +155,7 @@ function remove() {
     :title="course ? '编辑课程' : '添加课程'"
     description="课程信息会立即保存到当前浏览器"
     width="wide"
-    @close="emit('close')"
+    @close="saving ? undefined : emit('close')"
   >
     <form id="course-editor-form" class="course-form" @submit.prevent="submit">
       <div class="form-field form-field--span-2">
@@ -249,12 +251,14 @@ function remove() {
     </form>
 
     <template #footer>
-      <button v-if="course && session" type="button" class="button button--danger-ghost" @click="remove">
+      <button v-if="course && session" type="button" class="button button--danger-ghost" :disabled="saving" @click="remove">
         <Trash2 :size="17" />删除该时段
       </button>
       <span class="modal-footer__spacer" />
-      <button type="button" class="button button--ghost" @click="emit('close')">取消</button>
-      <button type="submit" form="course-editor-form" class="button button--primary">保存课程</button>
+      <button type="button" class="button button--ghost" :disabled="saving" @click="emit('close')">取消</button>
+      <button type="submit" form="course-editor-form" class="button button--primary" :disabled="saving">
+        {{ saving ? '正在保存…' : '保存课程' }}
+      </button>
     </template>
   </BaseModal>
 </template>

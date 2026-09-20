@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1789889231847,
+      "tag": "0000_init_auth_schedule",
+      "breakpoints": true
+    }
+  ]
+}

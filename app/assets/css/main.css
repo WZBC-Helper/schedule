@@ -224,11 +224,42 @@ textarea:focus-visible {
   color: var(--text-muted);
   font-size: 10px;
   line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card {
+  margin-bottom: 7px;
+  background: #f5f4ff;
+}
+
+.account-card > div,
+.sync-card > div {
+  min-width: 0;
+}
+
+.sync-card {
+  border-color: #dff0e9;
+  background: #f2fbf7;
+}
+
+.sync-card > span {
+  color: #238369;
 }
 
 .sidebar-settings {
   border-top: 1px solid var(--line);
   border-radius: 0;
+}
+
+.sidebar-logout {
+  color: #a4495b;
+}
+
+.sidebar-logout:hover {
+  color: #b63751;
+  background: #fff1f3;
 }
 
 .main-content {
@@ -365,6 +396,59 @@ textarea:focus-visible {
 
 .button--danger-ghost:hover {
   background: #fff1f3;
+}
+
+.button:disabled,
+.summary-actions button:disabled,
+.nav-item:disabled,
+.import-option:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.page-loading,
+.page-error {
+  display: grid;
+  min-height: calc(100vh - 150px);
+  place-items: center;
+  align-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.page-loading > span {
+  display: grid;
+  width: 55px;
+  height: 55px;
+  margin-bottom: 14px;
+  place-items: center;
+  border-radius: 17px;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.page-loading svg {
+  animation: page-loading-spin 0.9s linear infinite;
+}
+
+.page-loading strong,
+.page-error strong {
+  font-size: 14px;
+}
+
+.page-loading p,
+.page-error p {
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.page-error .button {
+  margin-top: 18px;
+}
+
+@keyframes page-loading-spin {
+  to { transform: rotate(360deg); }
 }
 
 .summary-row {

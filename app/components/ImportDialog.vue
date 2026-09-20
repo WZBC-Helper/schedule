@@ -12,6 +12,7 @@ import {
 
 const props = defineProps<{
   open: boolean
+  pending?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -36,6 +37,7 @@ const options = [
 const selected = computed(() => options.find((item) => item.id === selectedId.value) ?? options[0]!)
 
 async function handleBackupFile(event: Event) {
+  if (props.pending) return
   fileError.value = ''
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -61,7 +63,7 @@ async function handleBackupFile(event: Event) {
     title="导入课程表"
     description="选择数据来源。导入内容会先校验，确认有效后才替换本地课表。"
     width="wide"
-    @close="emit('close')"
+    @close="pending ? undefined : emit('close')"
   >
     <div class="import-layout">
       <div class="import-options">
@@ -71,6 +73,7 @@ async function handleBackupFile(event: Event) {
           type="button"
           class="import-option"
           :class="{ 'import-option--active': selectedId === option.id }"
+          :disabled="pending"
           @click="selectedId = option.id; fileError = ''"
         >
           <span class="import-option__icon" :class="`import-option__icon--${option.tone}`">
@@ -100,10 +103,10 @@ async function handleBackupFile(event: Event) {
           <p v-if="fileError" class="inline-error" role="alert">{{ fileError }}</p>
           <input ref="backupInput" type="file" accept="application/json,.json" hidden @change="handleBackupFile">
           <div class="import-actions">
-            <button type="button" class="button button--primary" @click="backupInput?.click()">
-              <UploadCloud :size="17" />选择备份文件
+            <button type="button" class="button button--primary" :disabled="pending" @click="backupInput?.click()">
+              <UploadCloud :size="17" />{{ pending ? '正在导入…' : '选择备份文件' }}
             </button>
-            <button type="button" class="button button--ghost" @click="emit('export-backup')">导出当前课表</button>
+            <button type="button" class="button button--ghost" :disabled="pending" @click="emit('export-backup')">导出当前课表</button>
           </div>
         </template>
 
